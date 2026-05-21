@@ -1,0 +1,66 @@
+import mysql.connector
+from datetime import datetime, timedelta
+
+# Σύνδεση στη βάση δεδομένων
+db = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="1234",
+    database="bingo_v2_db"
+)
+
+cursor = db.cursor(dictionary=True)
+print("Η σύνδεση έγινε επιτυχώς")
+
+def join_green_challenge(citizen_id, goal_description, badge_reward, days_limit=7):
+    # Διορθώθηκε το indentation εδώ
+    time_limit = datetime.now() + timedelta(days=days_limit)
+
+    cursor.execute(
+        """
+        INSERT INTO GreenChallenge (goal, timeLimit, badgeToUnlock, citizenID)
+        VALUES (%s, %s, %s, %s)
+        """, (goal_description, time_limit, badge_reward, citizen_id)
+    )
+    db.commit()
+    generated_id = cursor.lastrowid
+    print(f"\n--- ΠΧ10 --- \nΤο challenge δημιουργήθηκε με ID: {generated_id}")
+    return generated_id
+
+def complete_green_challenge(challenge_id):
+    cursor.execute("SELECT * FROM GreenChallenge WHERE challengeID = %s", (challenge_id,))
+    challenge = cursor.fetchone()
+
+    if challenge is None:
+        print("Δεν βρέθηκε challenge")
+        return
+    
+    # Προσθήκη λογικής ενημέρωσης πόντων (παράδειγμα)
+    cursor.execute("UPDATE Citizen SET totalPoints = totalPoints + 50 WHERE citizenID = %s", (challenge['citizenID'],))
+    db.commit()
+    print("\nΤο challenge ολοκληρώθηκε επιτυχώς και προστέθηκαν πόντοι!")
+
+def complete_collection(employee_id, bin_id):
+    cursor.execute("UPDATE RecyclingBin SET fillLevel = 0 WHERE binID = %s", (bin_id,))
+    db.commit()
+    print("\n--- ΠΧ11 --- \nΗ αποκομιδή ολοκληρώθηκε")
+
+def report_bin_damage(employee_id, bin_id):
+    cursor.execute("UPDATE RecyclingBin SET status = 'Εκτός Λειτουργίας' WHERE binID = %s", (bin_id,))
+    db.commit()
+    print("Ο κάδος δηλώθηκε εκτός λειτουργίας")
+
+def publish_environmental_action(employee_id, title):
+    # Προσθήκη SQL insert αν υπάρχει πίνακας GreenAction
+    print("\n--- ΠΧ12 --- \nΔημοσιεύτηκε νέα δράση:", title)
+
+# Κλήση συναρτήσεων
+my_id = join_green_challenge(citizen_id=1, goal_description="Recycle Glass", badge_reward="Eco Badge")
+complete_green_challenge(my_id)
+complete_collection(employee_id=101, bin_id=1)
+report_bin_damage(employee_id=101, bin_id=1)
+publish_environmental_action(employee_id=101, title="Park Cleaning")
+
+cursor.close()
+db.close()
+print("\nΤο πρόγραμμα τελείωσε")
