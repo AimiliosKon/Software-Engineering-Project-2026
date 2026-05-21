@@ -1,0 +1,330 @@
+import mysql.connector
+
+
+
+# Σύνδεση με τη βάση δεδομένων
+db = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    password="",          # Βάλε εδώ τον κωδικό σου αν έχεις
+    database="bingo_v2_db"
+)
+
+
+
+cursor = db.cursor(dictionary=True)
+
+
+
+# =====================================================
+# ΠΕΡΙΠΤΩΣΗ ΧΡΗΣΗΣ 4: Ορθή προετοιμασία ανακυκλώσιμων υλικών
+# BCE: RecognitionEngine (Control) & ScannerUI (Boundary)
+# =====================================================
+
+
+
+def scan_material(citizen_id, material):
+    material = material.lower().strip()
+
+
+
+    # Δεδομένα από το Use Case 4 του εγγράφου
+    recyclable_materials = {
+        "πλαστικό": {
+            "bin_type": "Πλαστικό",
+            "bin_color": "Μπλε κάδος",
+            "instructions": "Ξεπλύνετε τη συσκευασία και συμπιέστε το μπουκάλι.",
+            "points": 10
+        },
+        "χαρτί": {
+            "bin_type": "Χαρτί",
+            "bin_color": "Μπλε κάδος",
+            "instructions": "Το χαρτί πρέπει να είναι καθαρό και στεγνό.",
+            "points": 8
+        },
+        "γυαλί": {
+            "bin_type": "Γυαλί",
+            "bin_color": "Κάδος γυαλιού",
+            "instructions": "Ξεπλύνετε το γυάλινο μπουκάλι και αφαιρέστε το καπάκι.",
+            "points": 12
+        },
+        "αλουμίνιο": {
+            "bin_type": "Αλουμίνιο",
+            "bin_color": "Μπλε κάδος",
+            "instructions": "Ξεπλύνετε το κουτάκι πριν τη ρίψη.",
+            "points": 10
+        }
+    }
+
+
+
+    # Εναλλακτική Ροή 2: Υλικά ειδικής διαχείρισης
+    special_materials = ["μπαταρία", "μπαταρίες", "ηλεκτρονικό", "ηλεκτρονικά", "λάμπα", "λάμπες"]
+
+
+
+    if material in recyclable_materials:
+        info = recyclable_materials[material]
+
+
+
+        print("\n--- [ScannerUI] ΑΠΟΤΕΛΕΣΜΑ ΣΑΡΩΣΗΣ ---")
+        print("Το υλικό αναγνωρίστηκε ως ανακυκλώσιμο.")
+        print(f"Υλικό: {material} | Κατάλληλος κάδος: {info['bin_color']}")
+        print(f"Οδηγίες προετοιμασίας: {info['instructions']}")
+        print(f"Πράσινοι πόντοι που μπορείτε να κερδίσετε: {info['points']}")
+
+
+
+        # Ανάκτηση διαθέσιμων κάδων (Control Logic)
+        cursor.execute("""
+            SELECT binID, materialType, location, status
+            FROM RecyclingBin
+            WHERE LOWER(materialType) = LOWER(%s)
+            AND status = 'Λειτουργικός'
+        """, (info["bin_type"],))
+
+
+
+        bins = cursor.fetchall()
+
+
+
+        if bins:
+            print("\n[EcoRoute] Κοντινοί διαθέσιμοι κάδοι στον χάρτη:")
+            for b in bins:
+                print(f"  -> Κάδος ID: {b['binID']} | Τοποθεσία: {b['location']}")
+        else:
+            print("\n[Οθόνη Μηνύματος] Δεν βρέθηκε διαθέσιμος λειτουργικός κάδος στην περιοχή.")
+
+
+
+    elif material in special_materials:
+        print("\n--- [Οθόνη Μηνύματος] ΕΙΔΙΚΗ ΔΙΑΧΕΙΡΙΣΗ ---")
+        print("Το υλικό αυτό απαιτεί ειδική ανακύκλωση (Δεν πρέπει να ριφθεί στους κοινούς κάδους).")
+        print("Το σύστημα φορτώνει αυτόματα στον χάρτη τα Ειδικά Σημεία Συλλογής (π.χ. κάδους ΣΕΔΙ).")
+
+
+
+    else:
+        print("\n--- [Οθόνη Μηνύματος] ΜΗ ΑΝΑΚΥΚΛΩΣΙΜΟ ΥΛΙΚΟ ---")
+        print("Το υλικό αυτό δεν ανακυκλώνεται. Παρακαλώ ρίξτε το στους κοινούς κάδους.")
+
+
+
+# =====================================================
+# ΠΕΡΙΠΤΩΣΗ ΧΡΗΣΗΣ 5: Εξαργύρωση πόντων
+# BCE: PointsCalculator (Control) & ProfileUI (Boundary)
+# =====================================================
+
+
+
+def redeem_points(citizen_id, reward_id):
+    cursor.execute("SELECT citizenID, totalPoints FROM Citizen WHERE citizenID = %s", (citizen_id,))
+    citizen = cursor.fetchone()
+
+
+
+    if citizen is None:
+        print("[Οθόνη Μηνύματος Σφάλματος] Ο πολίτης δεν βρέθηκε.")
+        return
+
+
+
+    cursor.execute("SELECT rewardID, title, pointsRequired, description FROM Reward WHERE rewardID = %s", (reward_id,))
+    reward = cursor.fetchone()
+
+
+
+    if reward is None:
+        print("[Οθόνη Μηνύματος Σφάλματος] Η επιβράβευση δεν βρέθηκε.")
+        return
+
+
+
+    current_points = citizen["totalPoints"]
+    required_points = reward["pointsRequired"]
+
+
+
+    print("\n--- [ProfileUI] ΕΞΑΡΓΥΡΩΣΗ ΠΟΝΤΩΝ ---")
+    print(f"Διαθέσιμοι πόντοι προφίλ: {current_points}")
+    print(f"Απαιτούμενοι πόντοι για '{reward['title']}': {required_points}")
+
+
+
+    if current_points < required_points:
+        print(f"[Οθόνη Μηνύματος Σφάλματος] Ανεπαρκές υπόλοιπο. Χρειάζεστε ακόμα {required_points - current_points} πόντους.")
+        return
+
+
+
+    new_total = current_points - required_points
+
+
+
+    cursor.execute("UPDATE Citizen SET totalPoints = %s WHERE citizenID = %s", (new_total, citizen_id))
+    db.commit()
+
+
+
+    print("Η εξαργύρωση ολοκληρώθηκε επιτυχώς!")
+    print(f"Εκδόθηκε το κουπόνι σας: {reward['title']} ({reward['description']})")
+    print(f"Νέο υπόλοιπο πόντων: {new_total}")
+
+
+
+    cursor.execute("SELECT title, pointsRequired FROM Reward WHERE pointsRequired <= %s", (new_total,))
+    next_rewards = cursor.fetchall()
+    if next_rewards:
+        print("Άλλες προσφορές που μπορείτε να εξαργυρώσετε με το νέο υπόλοιπο:")
+        for r in next_rewards:
+            print(f"  - {r['title']} ({r['pointsRequired']} πόντοι)")
+
+
+
+def donate_points(citizen_id, points, organization_name="Περιβαλλοντική Δράση"):
+    cursor.execute("SELECT citizenID, totalPoints FROM Citizen WHERE citizenID = %s", (citizen_id,))
+    citizen = cursor.fetchone()
+
+
+
+    if citizen is None:
+        print("[Οθόνη Μηνύματος Σφάλματος] Ο πολίτης δεν βρέθηκε.")
+        return
+
+
+
+    if points <= 0:
+        print("Σφάλμα: Οι πόντοι πρέπει να είναι θετικός αριθμός.")
+        return
+
+
+
+    current_points = citizen["totalPoints"]
+
+
+
+    print(f"\n--- [ProfileUI] ΔΩΡΕΑ ΠΟΝΤΩΝ ΣΕ {organization_name.upper()} ---")
+
+
+
+    if current_points < points:
+        print("[Οθόνη Μηνύματος Σφάλματος] Δεν έχετε αρκετούς πόντους για αυτή τη δωρεά.")
+        return
+
+
+
+    new_total = current_points - points
+    cursor.execute("UPDATE Citizen SET totalPoints = %s WHERE citizenID = %s", (new_total, citizen_id))
+    db.commit()
+
+
+
+    print(f"Η δωρεά {points} πόντων ολοκληρώθηκε επιτυχώς.")
+    print("--- [ΕΚΔΟΣΗ] Εκδόθηκε Ψηφιακή Πιστοποίηση Πράσινης Προσφοράς BinGo ---")
+    print(f"Νέο υπόλοιπο πόντων: {new_total}")
+
+
+
+# =====================================================
+# ΠΕΡΙΠΤΩΣΗ ΧΡΗΣΗΣ 6: Επιβράβευση
+# BCE: PointsCalculator (Control)
+# =====================================================
+
+
+
+def add_reward_points(citizen_id, activity):
+    activities = {
+        "daily_login": 5,
+        "correct_recycling": 15,
+        "qr_scan": 20,
+        "green_challenge": 30
+    }
+
+
+
+    if activity not in activities:
+        print("Μη έγκυρη δραστηριότητα.")
+        return
+
+
+
+    cursor.execute("SELECT citizenID, totalPoints FROM Citizen WHERE citizenID = %s", (citizen_id,))
+    citizen = cursor.fetchone()
+
+
+
+    if citizen is None:
+        print("[Οθόνη Μηνύματος Σφάλματος] Ο πολίτης δεν βρέθηκε.")
+        return
+
+
+
+    earned_points = activities[activity]
+    new_total = citizen["totalPoints"] + earned_points
+
+
+
+    cursor.execute("UPDATE Citizen SET totalPoints = %s WHERE citizenID = %s", (new_total, citizen_id))
+    db.commit()
+
+
+
+    print(f"[Οθόνη Κερδισμένων Πόντων] +{earned_points} πόντοι από δραστηριότητα '{activity}'")
+    print(f"Συνολικοί πόντοι: {new_total}")
+
+
+
+def qr_bin_reward(citizen_id, bin_id, gps_confirmed):
+    print("\n--- [Λειτουργία] ΣΑΡΩΣΗ QR CODE ΚΑΔΟΥ ---")
+
+
+
+    if not gps_confirmed:
+        print("[Οθόνη Μηνύματος Σφάλματος] Αποτυχία επιβεβαίωσης GPS. Δεν είστε κοντά στον κάδο!")
+        return
+
+
+
+    cursor.execute("SELECT binID, location, status FROM RecyclingBin WHERE binID = %s", (bin_id,))
+    bin_data = cursor.fetchone()
+
+
+
+    if bin_data is None:
+        print("[Οθόνη Μηνύματος Σφάλματος] Ο κωδικός QR δεν αντιστοιχεί σε έγκυρο κάδο.")
+        return
+
+
+
+    if bin_data["status"] != "Λειτουργικός":
+        print(f"[Οθόνη Μηνύματος] Ο κάδος στην τοποθεσία {bin_data['location']} είναι εκτός λειτουργίας λόγω βλάβης.")
+        return
+
+
+
+    print(f"Το σύστημα επιβεβαίωσε τη θέση σας στον κάδο: {bin_data['location']}")
+    print("Η ρίψη των υλικών ολοκληρώθηκε ορθά.")
+   
+    add_reward_points(citizen_id, "qr_scan")
+
+
+
+# =====================================================
+# ΕΚΤΕΛΕΣΗ ΔΟΚΙΜΩΝ
+# =====================================================
+
+
+
+# Δοκιμές συναρτήσεων
+scan_material(1, "πλαστικό")
+qr_bin_reward(1, 1, gps_confirmed=True)  # Άλλαξε το ID από 10 σε 1
+redeem_points(1, 1)
+
+
+
+# Κλείσιμο των πόρων
+cursor.close()
+db.close()
+
