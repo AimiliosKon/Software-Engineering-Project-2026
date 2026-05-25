@@ -1,0 +1,163 @@
+classDiagram
+
+    %% ─── CORE USER CLASSES ───────────────────────────────────────
+    class User {
+        +int id
+        +String name
+        +String email
+        +String password
+        +DateTime registrationDate
+    }
+
+    class Citizen {
+        +int citizenID
+        +int totalPoints
+        +String location
+        +String badges
+        +getGreenProfile()
+        +redeemPoints(rewardID)
+        +donatePoints(points, org)
+        +joinGreenChallenge(challengeID)
+        +completeGreenChallenge(challengeID)
+        +scanMaterial(material)
+        +evaluateBin(binID, rating, comment)
+        +planEcoRoute()
+    }
+
+    class Employee {
+        +int employeeID
+        +completeCollection(binID)
+        +reportBinDamage(binID)
+        +publishEnvironmentalAction(title)
+        +viewStatistics(category, filter)
+        +notifyUser(citizenID)
+    }
+
+    %% ─── RECYCLING INFRASTRUCTURE ────────────────────────────────
+    class RecyclingBin {
+        +int binID
+        +String materialType
+        +String location
+        +String status
+    }
+
+    class BinMap {
+        +List bins
+        +addBin(bin)
+        +getBins()
+        +findByMaterial(type)
+    }
+
+    class BinDetailsSystem {
+        +getBinDetails(binID)
+        +getReviews(binID)
+    }
+
+    class Report {
+        +int reportID
+        +int citizenID
+        +int binID
+        +String issueType
+        +DateTime createdAt
+    }
+
+    class Review {
+        +int reviewID
+        +int citizenID
+        +int binID
+        +int rating
+        +String comment
+    }
+
+    %% ─── REWARD & CHALLENGES ─────────────────────────────────────
+    class Reward {
+        +int rewardID
+        +String title
+        +int pointsRequired
+        +String description
+    }
+
+    class GreenChallenge {
+        +int challengeID
+        +String goal
+        +DateTime timeLimit
+        +String badgeToUnlock
+        +int citizenID
+    }
+
+    %% ─── SMART FEATURES ──────────────────────────────────────────
+    class EcoRoute {
+        +int routeID
+        +String optimalPath
+        +int citizenID
+        +plan(citizenID)
+    }
+
+    class AI_Assistant {
+        +int assistantID
+        +int citizenID
+        +getBotResponse(message, ctx)
+    }
+
+    class RecognitionEngine {
+        +scan(material)
+        +classify(material)
+        +getInstructions(material)
+        +getPoints(material)
+    }
+
+    %% ─── CONTROL CLASSES ─────────────────────────────────────────
+    class PointsCalculator {
+        +addRewardPoints(citizenID, activity)
+        +qrBinReward(citizenID, binID, gps)
+        +calculateImpact(totalPoints)
+    }
+
+    class StatisticsController {
+        +List categories
+        +fetchStats(categoryIdx, filter)
+    }
+
+    class NotificationController {
+        +fetchCitizens()
+        +sendMessage(citizenID)
+        +getMockPhone(citizenID)
+    }
+
+    %% ─── RELATIONSHIPS ───────────────────────────────────────────
+
+    User <|-- Citizen : extends
+    User <|-- Employee : extends
+
+    Citizen "1" --> "0..*" Report : creates
+    Citizen "1" --> "0..*" Review : writes
+    Citizen "1" --> "0..*" GreenChallenge : participates
+    Citizen "1" --> "0..*" EcoRoute : plans
+    Citizen "1" --> "0..*" AI_Assistant : uses
+
+    Employee "1" --> "0..*" Report : manages
+    Employee "1" --> "1" StatisticsController : uses
+    Employee "1" --> "1" NotificationController : uses
+
+    RecyclingBin "1" --> "0..*" Report : subject of
+    RecyclingBin "1" --> "0..*" Review : receives
+
+    BinMap "1" *-- "0..*" RecyclingBin : contains
+    BinDetailsSystem --> RecyclingBin : reads
+    BinDetailsSystem --> Review : aggregates
+
+    PointsCalculator --> Citizen : updates points
+    PointsCalculator --> RecyclingBin : validates QR
+
+    RecognitionEngine --> RecyclingBin : locates bins
+
+    Citizen --> Reward : redeems
+    Citizen --> RecognitionEngine : triggers scan
+    Citizen --> PointsCalculator : earns points
+
+    StatisticsController --> RecyclingBin : queries
+    StatisticsController --> Citizen : queries
+    StatisticsController --> Review : queries
+
+    NotificationController --> Citizen : contacts
+
