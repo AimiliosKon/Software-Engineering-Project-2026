@@ -17,6 +17,10 @@ from logic import (
     complete_collection, report_bin_damage, publish_environmental_action,
     plan_eco_route, BIN_MAP, qr_bin_reward,
 )
+import importlib
+_uc1314 = importlib.import_module("use case_13_14")
+StatisticsController = _uc1314.StatisticsController
+NotificationController = _uc1314.NotificationController
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
@@ -158,58 +162,124 @@ def stat_card(parent,value,label_text,color=ACCENT):
 # ║                   MAIN APP                               ║
 # ╚══════════════════════════════════════════════════════════╝
 
+# ══════════════════════════════════════════════════════════
+# DEMO CREDENTIALS
+# Πολίτης:  katerina@gmail.com  / bingo2026
+# Υπάλληλος: employee@bingo.gr  / employee123
+# ══════════════════════════════════════════════════════════
+
 class LoginWindow(ctk.CTk):
     def __init__(self, on_success):
         super().__init__()
         self.title("BinGo — Σύνδεση")
-        self.geometry("440x680")
+        self.geometry("440x720")
         self.configure(fg_color=PANEL)
         self.resizable(False, False)
-        # self.grab_set()  # Not needed for CTk
         self.on_success = on_success
-        self._mode = "login"  # "login" ή "register"
+        self._mode = "login"   # "login" ή "register"
+        self._role = "citizen" # "citizen" ή "employee"
         self._build()
 
     def _build(self):
         for w in self.winfo_children(): w.destroy()
 
-        lbl(self, "🌿", size=44).pack(pady=(32, 4))
+        lbl(self, "🌿", size=44).pack(pady=(28, 4))
         lbl(self, "BinGo", size=26, weight="bold", color=ACCENT).pack()
         lbl(self, "Έξυπνη Ανακύκλωση · Πάτρα",
-            size=11, color=SUBTEXT).pack(pady=(2, 24))
+            size=11, color=SUBTEXT).pack(pady=(2, 18))
 
-        # Tabs
-        tab_f = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10)
-        tab_f.pack(fill="x", padx=40, pady=(0, 20))
-        tab_r = ctk.CTkFrame(tab_f, fg_color="transparent")
-        tab_r.pack(fill="x", padx=6, pady=6)
+        # ── Role selector (Πολίτης / Υπάλληλος) ──────────────
+        role_f = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10)
+        role_f.pack(fill="x", padx=40, pady=(0, 14))
+        role_r = ctk.CTkFrame(role_f, fg_color="transparent")
+        role_r.pack(fill="x", padx=6, pady=6)
 
-        def set_mode(m):
-            self._mode = m
+        def set_role(r):
+            self._role = r
+            self._mode = "login"
             self._build()
 
-        login_color  = ACCENT  if self._mode == "login"    else CARD
-        login_tc     = "#0F1117" if self._mode == "login"  else SUBTEXT
-        reg_color    = ACCENT  if self._mode == "register" else CARD
-        reg_tc       = "#0F1117" if self._mode == "register" else SUBTEXT
+        for label, key in [("👤 Πολίτης", "citizen"), ("🚛 Υπάλληλος", "employee")]:
+            active = self._role == key
+            ctk.CTkButton(role_r, text=label,
+                          fg_color=ACCENT if active else PANEL,
+                          text_color="#0F1117" if active else SUBTEXT,
+                          hover_color=_dk(ACCENT) if active else CARD,
+                          height=34, corner_radius=8,
+                          font=ctk.CTkFont(size=13, weight="bold"),
+                          command=lambda k=key: set_role(k)).pack(
+                              side="left", expand=True, fill="x", padx=2)
 
-        ctk.CTkButton(tab_r, text="Σύνδεση", fg_color=login_color,
-                      text_color=login_tc, hover_color=_dk(login_color),
-                      height=34, corner_radius=8,
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=lambda: set_mode("login")).pack(side="left", expand=True, fill="x", padx=2)
-        ctk.CTkButton(tab_r, text="Εγγραφή", fg_color=reg_color,
-                      text_color=reg_tc, hover_color=_dk(reg_color),
-                      height=34, corner_radius=8,
-                      font=ctk.CTkFont(size=13, weight="bold"),
-                      command=lambda: set_mode("register")).pack(side="left", expand=True, fill="x", padx=2)
+        # ── Login / Register tabs (μόνο για πολίτη) ──────────
+        if self._role == "citizen":
+            tab_f = ctk.CTkFrame(self, fg_color=CARD, corner_radius=10)
+            tab_f.pack(fill="x", padx=40, pady=(0, 14))
+            tab_r = ctk.CTkFrame(tab_f, fg_color="transparent")
+            tab_r.pack(fill="x", padx=6, pady=6)
+
+            def set_mode(m):
+                self._mode = m
+                self._build()
+
+            for label, key in [("Σύνδεση", "login"), ("Εγγραφή", "register")]:
+                active = self._mode == key
+                ctk.CTkButton(tab_r, text=label,
+                              fg_color=ACCENT if active else CARD,
+                              text_color="#0F1117" if active else SUBTEXT,
+                              hover_color=_dk(ACCENT), height=34, corner_radius=8,
+                              font=ctk.CTkFont(size=13, weight="bold"),
+                              command=lambda k=key: set_mode(k)).pack(
+                                  side="left", expand=True, fill="x", padx=2)
 
         p = ctk.CTkFrame(self, fg_color="transparent")
         p.pack(fill="x", padx=40)
-
         self.err_lbl = lbl(p, "", size=12, color=DANGER)
 
-        if self._mode == "login":
+        # ══════════════════════════════════════════════════════
+        # ΥΠΑΛΛΗΛΟΣ — login form
+        # ══════════════════════════════════════════════════════
+        if self._role == "employee":
+            # Διακριτικό badge υπαλλήλου
+            badge = ctk.CTkFrame(p, fg_color="#1A3D32", corner_radius=10)
+            badge.pack(fill="x", pady=(0, 14))
+            lbl(badge, "🚛  Πύλη Εισόδου Υπαλλήλου", size=12,
+                weight="bold", color=ACCENT).pack(pady=10)
+
+            lbl(p, "Email Υπαλλήλου", size=12, color=SUBTEXT).pack(anchor="w", pady=(0,4))
+            self.emp_email_e = inp(p, "employee@bingo.gr", height=42)
+            self.emp_email_e.pack(fill="x", pady=(0,12))
+            self.emp_email_e.insert(0, "employee@bingo.gr")
+
+            lbl(p, "Κωδικός", size=12, color=SUBTEXT).pack(anchor="w", pady=(0,4))
+            self.emp_pass_e = inp(p, "••••••••", height=42, show="•")
+            self.emp_pass_e.pack(fill="x", pady=(0,6))
+            self.emp_pass_e.insert(0, "employee123")
+
+            self.err_lbl.pack(anchor="w", pady=(0,12))
+            btn(p, "Είσοδος Υπαλλήλου →", self._employee_login,
+                color="#1A3D32", tc=ACCENT, h=44).pack(fill="x")
+
+            div = ctk.CTkFrame(p, fg_color="transparent")
+            div.pack(fill="x", pady=(14, 0))
+            ctk.CTkFrame(div, fg_color=BORDER, height=1).pack(
+                side="left", fill="x", expand=True, pady=8)
+            lbl(div, "  ή  ", size=11, color=SUBTEXT).pack(side="left")
+            ctk.CTkFrame(div, fg_color=BORDER, height=1).pack(
+                side="left", fill="x", expand=True, pady=8)
+
+            btn(p, "🚀 Δοκιμαστική Είσοδος Υπαλλήλου",
+                self._employee_guest_login,
+                color=CARD, tc=ACCENT, h=42).pack(fill="x", pady=(12, 0))
+
+            lbl(p, "Demo: employee@bingo.gr / employee123",
+                size=10, color=SUBTEXT).pack(pady=(10, 0))
+
+            self.emp_pass_e.bind("<Return>", lambda e: self._employee_login())
+
+        # ══════════════════════════════════════════════════════
+        # ΠΟΛΙΤΗΣ — login / register form
+        # ══════════════════════════════════════════════════════
+        elif self._mode == "login":
             lbl(p, "Email", size=12, color=SUBTEXT).pack(anchor="w", pady=(0,4))
             self.email_e = inp(p, "katerina@gmail.com", height=42)
             self.email_e.pack(fill="x", pady=(0,12))
@@ -225,7 +295,6 @@ class LoginWindow(ctk.CTk):
             btn(p, "Σύνδεση →", self._login,
                 color=ACCENT, tc="#0F1117", h=44).pack(fill="x")
 
-            # Διαχωριστής
             div = ctk.CTkFrame(p, fg_color="transparent")
             div.pack(fill="x", pady=(16, 0))
             ctk.CTkFrame(div, fg_color=BORDER, height=1).pack(
@@ -272,13 +341,26 @@ class LoginWindow(ctk.CTk):
         pwd   = self.pass_e.get().strip()
         if email == "katerina@gmail.com" and pwd == "bingo2026":
             self.destroy()
-            self.on_success("Κατερίνα")
+            self.on_success("Κατερίνα", "citizen")
         else:
             self.err_lbl.configure(text="❌ Λάθος email ή κωδικός.")
 
     def _guest_login(self):
         self.destroy()
-        self.on_success("Guest")
+        self.on_success("Guest", "citizen")
+
+    def _employee_login(self):
+        email = self.emp_email_e.get().strip()
+        pwd   = self.emp_pass_e.get().strip()
+        if email == "employee@bingo.gr" and pwd == "employee123":
+            self.destroy()
+            self.on_success("Υπάλληλος", "employee")
+        else:
+            self.err_lbl.configure(text="❌ Λάθος στοιχεία υπαλλήλου.")
+
+    def _employee_guest_login(self):
+        self.destroy()
+        self.on_success("Υπάλληλος", "employee")
 
     def _show_register(self):
         name  = self.name_e.get().strip()
@@ -978,10 +1060,12 @@ class BinGoApp(ctk.CTk):
             ctk.CTkFrame(tc,fg_color=BORDER,height=1).pack(fill="x",padx=16)
 
     # ══════════════════════════════════════════════════════════
-    # UC11/12 — Υπάλληλος
+    # UC11/12/13/14 — Υπάλληλος
     # ══════════════════════════════════════════════════════════
     def _employee(self):
-        self._header("Πίνακας Υπαλλήλου","Περιπτώσεις Χρήσης 11 & 12")
+        self._header("Πίνακας Υπαλλήλου","Περιπτώσεις Χρήσης 11, 12, 13 & 14")
+
+        # ── UC 11: Αποκομιδή & Βλάβη ─────────────────────────
         cols=ctk.CTkFrame(self.content,fg_color="transparent"); cols.pack(fill="x",padx=32,pady=(20,0))
         def emp_col(parent,title,hint,ph,bt,fn,col=ACCENT):
             f=ctk.CTkFrame(parent,fg_color="transparent"); f.pack(side="left",fill="both",expand=True,padx=6)
@@ -998,6 +1082,8 @@ class BinGoApp(ctk.CTk):
             btn(p,bt,do,color=col,tc="#0F1117" if col==ACCENT else TEXT,h=38).pack(fill="x")
         emp_col(cols,"ΑΠΟΚΟΜΙΔΗ  (ΠΧ11)","ID κάδου που αποκομίστηκε.","ID Κάδου","✓ Αποκομιδή",lambda bid:complete_collection(101,bid))
         emp_col(cols,"ΒΛΑΒΗ  (ΠΧ11)","ID κάδου με βλάβη.","ID Κάδου","⚠️ Δήλωση Βλάβης",lambda bid:report_bin_damage(101,bid),DANGER)
+
+        # ── UC 12: Δημοσίευση Δράσης ─────────────────────────
         sec(self.content,"  ΔΗΜΟΣΙΕΥΣΗ ΔΡΑΣΗΣ  (ΠΧ12)")
         dc=card(self.content); dc.pack(fill="x",padx=32)
         dp=ctk.CTkFrame(dc,fg_color="transparent"); dp.pack(fill="x",padx=16,pady=16)
@@ -1011,9 +1097,130 @@ class BinGoApp(ctk.CTk):
             pl.configure(text=f"✅ {r['message']}",text_color=ACCENT)
         btn(dr,"Δημοσίευση",do_pub,h=38).pack(side="left")
 
+        # ── UC 13: Προβολή Στατιστικών ────────────────────────
+        sec(self.content,"  ΣΤΑΤΙΣΤΙΚΑ  (ΠΧ13)")
+        sc=card(self.content); sc.pack(fill="x",padx=32,pady=(0,4))
+        sp=ctk.CTkFrame(sc,fg_color="transparent"); sp.pack(fill="x",padx=16,pady=16)
+
+        stats_ctrl = StatisticsController()
+        categories = stats_ctrl.get_available_categories()
+
+        lbl(sp,"Κατηγορία αναφοράς:",size=12,color=SUBTEXT).pack(anchor="w",pady=(0,4))
+        cat_var = ctk.StringVar(value=categories[0])
+        cat_menu = ctk.CTkOptionMenu(sp, values=categories, variable=cat_var,
+                                     fg_color=CARD, button_color=ACCENT,
+                                     button_hover_color=_dk(ACCENT), text_color=TEXT,
+                                     font=ctk.CTkFont(size=12))
+        cat_menu.pack(fill="x",pady=(0,10))
+
+        lbl(sp,"Χρονικό φίλτρο:",size=12,color=SUBTEXT).pack(anchor="w",pady=(0,4))
+        time_var = ctk.StringVar(value="Ημέρα")
+        time_menu = ctk.CTkOptionMenu(sp, values=["Ημέρα","Ώρα","Μήνας"], variable=time_var,
+                                      fg_color=CARD, button_color=ACCENT2,
+                                      button_hover_color=_dk(ACCENT2), text_color=TEXT,
+                                      font=ctk.CTkFont(size=12))
+        time_menu.pack(fill="x",pady=(0,10))
+
+        stats_out = ctk.CTkTextbox(sp, height=140, fg_color=BG, text_color=TEXT,
+                                   font=ctk.CTkFont(size=12), corner_radius=8)
+        stats_out.pack(fill="x",pady=(0,8))
+        stats_out.configure(state="disabled")
+
+        def do_stats():
+            cat_idx = categories.index(cat_var.get()) + 1
+            results = stats_ctrl.fetch_and_process_stats(cat_idx, time_var.get())
+            stats_out.configure(state="normal")
+            stats_out.delete("1.0","end")
+            if results is None:
+                stats_out.insert("end","⚠️ Δεν βρέθηκαν δεδομένα για αυτή την κατηγορία.")
+            else:
+                stats_out.insert("end",f"📊 Αναφορά: {cat_var.get()} | Φίλτρο: {time_var.get()}\n")
+                stats_out.insert("end","─"*50+"\n")
+                for k,v in results.items():
+                    if cat_idx == 1:
+                        stats_out.insert("end",f"  📍 {k:<18} → {v} πόντοι\n")
+                    elif cat_idx == 2:
+                        stats_out.insert("end",f"  🗑️  {k:<18} → {v} κάδοι\n")
+                    else:
+                        stats_out.insert("end",f"  ⭐ {k:<18} → {v}/5 ★\n")
+            stats_out.configure(state="disabled")
+
+        btn(sp,"🔍 Εμφάνιση Στατιστικών",do_stats,h=38).pack(fill="x")
+
+        # ── UC 14: Επικοινωνία / Ειδοποίηση Χρήστη ───────────
+        sec(self.content,"  ΕΠΙΚΟΙΝΩΝΙΑ ΧΡΗΣΤΗ  (ΠΧ14)")
+        nc=card(self.content); nc.pack(fill="x",padx=32,pady=(0,20))
+        np_=ctk.CTkFrame(nc,fg_color="transparent"); np_.pack(fill="x",padx=16,pady=16)
+
+        notify_ctrl = NotificationController()
+
+        lbl(np_,"Επιλογή πολίτη:",size=12,color=SUBTEXT).pack(anchor="w",pady=(0,4))
+
+        # Fallback demo δεδομένα αν η DB δεν είναι διαθέσιμη
+        DEMO_USERS = [
+            (1,  "Αριάδνη Σέχαι",              "ariadni@upatras.gr",  "Αγυιά",             1200),
+            (2,  "Ελένη Καφίρη",               "eleni@upatras.gr",    "Ψηλαλώνια",          850),
+            (3,  "Ιωάννα Δούκα",               "ioanna@upatras.gr",   "Κάστρο",             450),
+            (4,  "Αιμιλιανός Κωνσταντόπουλος", "aimilios@upatras.gr", "Ρίο",               2100),
+            (5,  "Μαρία Πετροπούλου",          "maria@upatras.gr",    "Ζαρουχλέικα",        150),
+            (8,  "Κώστας Αχαϊκός",             "kostas@email.com",    "Σύνορα",             900),
+            (9,  "Σοφία Ρίου",                 "sofia@email.com",     "Μποζαΐτικα",         320),
+            (10, "Ανδρέας Γεωργίου",           "andreas@email.com",   "Πλατεία Γεωργίου",  1100),
+        ]
+        try:
+            fetched = notify_ctrl.fetch_users_from_disposal_fleet()
+            users = fetched if fetched else DEMO_USERS
+        except Exception:
+            users = DEMO_USERS
+        user_labels = [f"[{u[0]}] {u[1]}" for u in users]
+
+        user_var = ctk.StringVar(value=user_labels[0] if user_labels else "")
+        user_menu = ctk.CTkOptionMenu(np_, values=user_labels, variable=user_var,
+                                      fg_color=CARD, button_color=ACCENT,
+                                      button_hover_color=_dk(ACCENT), text_color=TEXT,
+                                      font=ctk.CTkFont(size=12))
+        user_menu.pack(fill="x",pady=(0,10))
+
+        notify_out = ctk.CTkTextbox(np_, height=120, fg_color=BG, text_color=TEXT,
+                                    font=ctk.CTkFont(size=12), corner_radius=8)
+        notify_out.pack(fill="x",pady=(0,8))
+        notify_out.configure(state="disabled")
+
+        def do_notify():
+            sel = user_var.get()
+            if not sel or not users:
+                return
+            # Βρες τον επιλεγμένο χρήστη
+            sel_idx = user_labels.index(sel)
+            sel_user = users[sel_idx]
+            citizen_id, name, email, location, points = sel_user
+
+            notify_out.configure(state="normal")
+            notify_out.delete("1.0","end")
+            notify_out.insert("end",f"👤 {name}\n")
+            notify_out.insert("end",f"📧 {email}\n")
+            notify_out.insert("end",f"📍 {location}  |  🏆 {points} πόντοι\n")
+            notify_out.insert("end","─"*40+"\n")
+
+            # Αποστολή μηνύματος (UC14 λογική)
+            success = notify_ctrl.send_automated_message()
+            if success:
+                notify_out.insert("end","✅ Το μήνυμα παραδόθηκε και διαβάστηκε επιτυχώς!\n")
+            else:
+                phone = notify_ctrl.get_user_phone_mock(citizen_id)
+                notify_out.insert("end","⚠️ Αδυναμία παράδοσης μηνύματος.\n")
+                notify_out.insert("end",f"📞 Εναλλακτικά, τηλεφωνήστε: {phone}\n")
+
+            notify_out.configure(state="disabled")
+
+        btn(np_,"📨 Αποστολή Μηνύματος",do_notify,h=38).pack(fill="x")
+
 if __name__ == "__main__":
-    def launch_main(username):
+    def launch_main(username, role="citizen"):
         app = BinGoApp()
+        # Αν είναι υπάλληλος, πήγαινε κατευθείαν στην καρτέλα Υπαλλήλου
+        if role == "employee":
+            app._nav("employee")
         app.mainloop()
 
     login = LoginWindow(on_success=launch_main)
