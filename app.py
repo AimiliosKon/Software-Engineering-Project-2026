@@ -123,6 +123,99 @@ PATRAS_BINS = [
 ]
 
 # ── Widget helpers ────────────────────────────────────────
+
+# ══════════════════════════════════════════════════════════
+# Χάρτης Πάτρας με κάδους (Canvas — χωρίς κωδικούς)
+# ══════════════════════════════════════════════════════════
+# Συντεταγμένες κάδων από PATRAS_BINS (lat/lon → pixel)
+# Bounding box Πάτρας: lat 38.22–38.28, lon 21.71–21.77
+_MAP_LAT_MIN, _MAP_LAT_MAX = 38.220, 38.285
+_MAP_LON_MIN, _MAP_LON_MAX = 21.710, 21.775
+_MAP_W, _MAP_H = 380, 220
+
+# Πραγματικά (προσεγγιστικά) coordinates κάδων
+_BIN_COORDS = [
+    {"mat": "Πλαστικό", "color": "#22D3EE", "lat": 38.2466, "lon": 21.7346},  # Πλ. Γεωργίου
+    {"mat": "Χαρτί",    "color": "#A3E635", "lat": 38.2441, "lon": 21.7368},  # Αγ. Ανδρέου
+    {"mat": "Γυαλί",    "color": "#FB923C", "lat": 38.2478, "lon": 21.7310},  # Ρήγα Φεραίου
+    {"mat": "Αλουμίνιο","color": "#C084FC", "lat": 38.2452, "lon": 21.7391},  # Ψηλαλώνια
+    {"mat": "Πλαστικό", "color": "#22D3EE", "lat": 38.2601, "lon": 21.7803},  # Ρίο
+    {"mat": "Χαρτί",    "color": "#A3E635", "lat": 38.2623, "lon": 21.7831},  # Νοσοκομείο Ρίου
+]
+
+def _latlon_to_px(lat, lon):
+    x = int((lon - _MAP_LON_MIN) / (_MAP_LON_MAX - _MAP_LON_MIN) * _MAP_W)
+    y = int((1 - (lat - _MAP_LAT_MIN) / (_MAP_LAT_MAX - _MAP_LAT_MIN)) * _MAP_H)
+    return x, y
+
+def _build_patras_map(parent):
+    """Σχεδιάζει χάρτη Πάτρας με κάδους χωρίς κωδικούς."""
+    import tkinter as tk
+
+    c_frame = ctk.CTkFrame(parent, fg_color="transparent")
+    c_frame.pack(fill="x", padx=12, pady=12)
+
+    canvas = tk.Canvas(c_frame, width=_MAP_W, height=_MAP_H,
+                       bg="#0F2420", highlightthickness=0, bd=0)
+    canvas.pack()
+
+    # ── Φόντο / θάλασσα (αριστερά) ──────────────────────────
+    canvas.create_rectangle(0, 0, 60, _MAP_H, fill="#0E3A5C", outline="")
+    canvas.create_text(30, _MAP_H//2, text="Patras", fill="#1E6FA0",
+                       font=("Arial", 7), justify="center")
+
+    # ── Κεντρικοί δρόμοι (προσεγγιστικά) ────────────────────
+    road_color = "#1A3D2E"
+    # Οριζόντιος (Αγ. Ανδρέου)
+    ax, ay = _latlon_to_px(38.2441, 21.710)
+    bx, by = _latlon_to_px(38.2441, 21.775)
+    canvas.create_line(ax, ay, bx, by, fill=road_color, width=3)
+    # Κάθετος (Κορίνθου)
+    ax, ay = _latlon_to_px(38.220, 21.740)
+    bx, by = _latlon_to_px(38.285, 21.740)
+    canvas.create_line(ax, ay, bx, by, fill=road_color, width=2)
+    # Παράκτιος
+    ax, ay = _latlon_to_px(38.220, 21.720)
+    bx, by = _latlon_to_px(38.270, 21.720)
+    canvas.create_line(ax, ay, bx, by, fill=road_color, width=2)
+
+    # ── Label τοποθεσιών ──────────────────────────────────────
+    cx, cy = _latlon_to_px(38.2466, 21.7346)
+    canvas.create_text(cx, cy - 22, text="Κέντρο", fill="#4ADE80",
+                       font=("Arial", 8, "bold"))
+    rx, ry = _latlon_to_px(38.261, 21.781)
+    canvas.create_text(rx, ry - 18, text="Ρίο", fill="#4ADE80",
+                       font=("Arial", 8, "bold"))
+
+    # ── Κάδοι ────────────────────────────────────────────────
+    for b in _BIN_COORDS:
+        x, y = _latlon_to_px(b["lat"], b["lon"])
+        r = 8
+        canvas.create_oval(x-r, y-r, x+r, y+r,
+                            fill=b["color"], outline="#0F1117", width=2)
+        canvas.create_text(x, y, text="♻", fill="#0F1117",
+                           font=("Arial", 7, "bold"))
+
+    # ── Υπόμνημα ─────────────────────────────────────────────
+    legend_items = [
+        ("#22D3EE", "Πλαστικό"),
+        ("#A3E635", "Χαρτί"),
+        ("#FB923C", "Γυαλί"),
+        ("#C084FC", "Αλουμίνιο"),
+    ]
+    lx, ly = 70, 10
+    for col, name in legend_items:
+        canvas.create_oval(lx, ly, lx+10, ly+10, fill=col, outline="")
+        canvas.create_text(lx+16, ly+5, text=name, fill="#A0AEC0",
+                           font=("Arial", 8), anchor="w")
+        lx += 85
+
+    # ── Κουμπί Google Maps ────────────────────────────────────
+    btn(parent, "🗺️ Άνοιξε στο Google Maps",
+        lambda: webbrowser.open(
+            "https://www.google.com/maps/search/κάδοι+ανακύκλωσης+Πάτρα/@38.2466,21.7346,14z"),
+        color="#1A3D32", tc="#4ADE80", h=34).pack(padx=12, pady=(0, 12), fill="x")
+
 def _dk(h):
     h=h.lstrip("#"); r,g,b=int(h[0:2],16),int(h[2:4],16),int(h[4:6],16)
     return f"#{max(0,r-30):02x}{max(0,g-30):02x}{max(0,b-30):02x}"
@@ -380,8 +473,9 @@ class LoginWindow(ctk.CTk):
         self.destroy()
         self.on_success(name.split()[0])
 class BinGoApp(ctk.CTk):
-    def __init__(self):
+    def __init__(self, role="citizen"):
         super().__init__()
+        self._user_role = role
         self.title("BinGo")
         self.geometry("1100x700")
         self.minsize(900,600)
@@ -411,8 +505,9 @@ class BinGoApp(ctk.CTk):
             ("🤖","BinGo AI",         "chat"),
             ("🏆","Προκλήσεις",      "challenges"),
             ("🏅","Leaderboard",     "leaderboard"),
-            ("🚛","Υπάλληλος",       "employee"),
         ]
+        if self._user_role == "employee":
+            items.append(("🚛","Υπάλληλος","employee"))
         for icon,name,key in items:
             f=ctk.CTkFrame(rail,fg_color="transparent",corner_radius=10)
             f.pack(fill="x",padx=12,pady=2)
@@ -519,26 +614,11 @@ class BinGoApp(ctk.CTk):
             btn(sp,"▶ Πήγαινε στη Σάρωση",lambda:self._nav("scan"),
                 color=ACCENT,tc="#0F1117",h=34).pack(anchor="w",pady=(10,0))
 
-        # Δεξιά: Κάδοι Πάτρας
+        # Δεξιά: Χάρτης Πάτρας με κάδους
         right=ctk.CTkFrame(cols,fg_color="transparent"); right.pack(side="left",fill="both",expand=True,padx=(10,0))
-        sec(right,"ΚΑΔΟΙ ΑΝΑΚΥΚΛΩΣΗΣ — ΠΑΤΡΑ")
+        sec(right,"ΧΑΡΤΗΣ ΚΑΔΩΝ — ΠΑΤΡΑ")
         map_card=card(right); map_card.pack(fill="x")
-        mp=ctk.CTkFrame(map_card,fg_color="transparent"); mp.pack(fill="x",padx=4,pady=8)
-
-        for b in PATRAS_BINS:
-            row=ctk.CTkFrame(mp,fg_color="transparent"); row.pack(fill="x",padx=12,pady=4)
-            ic_f=ctk.CTkFrame(row,fg_color="#1A3D32",width=32,height=32,corner_radius=16)
-            ic_f.pack(side="left"); ic_f.pack_propagate(False)
-            lbl(ic_f,b["mat"].split()[0],size=13).place(relx=.5,rely=.5,anchor="center")
-            info=ctk.CTkFrame(row,fg_color="transparent"); info.pack(side="left",padx=10,fill="x",expand=True)
-            lbl(info,b["loc"],size=12,weight="bold").pack(anchor="w")
-            lbl(info,f"{b['area']}  ·  Κωδ: {b['code']}",size=10,color=SUBTEXT).pack(anchor="w")
-            lbl(row,b["dist"],size=11,color=ACCENT).pack(side="right",padx=4)
-            ctk.CTkFrame(mp,fg_color=BORDER,height=1).pack(fill="x",padx=12)
-
-        btn(map_card,"🗺️ Άνοιξε στο Google Maps",
-            lambda:webbrowser.open("https://www.google.com/maps/search/κάδοι+ανακύκλωσης+Πάτρα/@38.2466,21.7346,14z"),
-            color=ACCENT2,tc=TEXT,h=34).pack(padx=16,pady=(8,14),fill="x")
+        _build_patras_map(map_card)
 
     # ══════════════════════════════════════════════════════════
     # UC1 — Προφίλ
@@ -597,6 +677,12 @@ class BinGoApp(ctk.CTk):
         btn(gr,"🗺️ Google Maps",
             lambda:webbrowser.open("https://www.google.com/maps/search/κάδοι+ανακύκλωσης+Πάτρα/@38.2466,21.7346,14z"),
             color=ACCENT2,tc=TEXT,h=34).pack(side="right")
+
+
+        # Χάρτης Πάτρας
+        sec(self.content,"  ΧΑΡΤΗΣ ΠΑΤΡΑΣ")
+        map_c=card(self.content); map_c.pack(fill="x",padx=32,pady=(0,12))
+        _build_patras_map(map_c)
 
         result=_BIN_MAP.get_nearby_bins(CITIZEN)
         sec(self.content,f"  {len(result['bins'])} ΚΟΝΤΙΝΟΙ ΚΑΔΟΙ")
@@ -1065,6 +1151,21 @@ class BinGoApp(ctk.CTk):
     def _employee(self):
         self._header("Πίνακας Υπαλλήλου","Περιπτώσεις Χρήσης 11, 12, 13 & 14")
 
+        # ── GPS Bar + Χάρτης Πάτρας ────────────────────────
+        gps_bar=ctk.CTkFrame(self.content,fg_color=CARD,corner_radius=12,
+                             border_width=1,border_color=ACCENT)
+        gps_bar.pack(fill="x",padx=32,pady=(20,0))
+        gr=ctk.CTkFrame(gps_bar,fg_color="transparent"); gr.pack(fill="x",padx=18,pady=12)
+        lbl(gr,"📡  GPS Ενεργό  ·  Πάτρα, Ελλάδα",size=13,color=ACCENT).pack(side="left")
+        btn(gr,"🗺️ Google Maps",
+            lambda:webbrowser.open("https://www.google.com/maps/search/κάδοι+ανακύκλωσης+Πάτρα/@38.2466,21.7346,14z"),
+            color=ACCENT2,tc=TEXT,h=32).pack(side="right")
+
+        sec(self.content,"  ΧΑΡΤΗΣ ΚΑΔΩΝ — ΠΑΤΡΑ")
+        emp_map_card=card(self.content); emp_map_card.pack(fill="x",padx=32,pady=(0,8))
+        _build_patras_map(emp_map_card)
+
+
         # ── UC 11: Αποκομιδή & Βλάβη ─────────────────────────
         cols=ctk.CTkFrame(self.content,fg_color="transparent"); cols.pack(fill="x",padx=32,pady=(20,0))
         def emp_col(parent,title,hint,ph,bt,fn,col=ACCENT):
@@ -1217,7 +1318,7 @@ class BinGoApp(ctk.CTk):
 
 if __name__ == "__main__":
     def launch_main(username, role="citizen"):
-        app = BinGoApp()
+        app = BinGoApp(role=role)
         # Αν είναι υπάλληλος, πήγαινε κατευθείαν στην καρτέλα Υπαλλήλου
         if role == "employee":
             app._nav("employee")
